@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 300px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+    }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 12px;
+      font-size: 16px;
+    }
+    
+    .title {
+      font-weight: 600;
+      font-size: 16px;
+      color: #1f2937;
+    }
+    
+    .status {
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    
+    .status.active {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+    }
+    
+    .status.inactive {
+      background: #f3f4f6;
+      color: #374151;
+      border: 1px solid #d1d5db;
+    }
+    
+    .session-info {
+      font-size: 14px;
+      color: #6b7280;
+      margin-top: 8px;
+    }
+    
+    .instructions {
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+    
+    .footer {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #e5e7eb;
+      font-size: 12px;
+      color: #9ca3af;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">⚡</div>
+    <div class="title">FlowState Focus Guardian</div>
+  </div>
+  
+  <div id="status" class="status inactive">
+    <div id="status-text">No active Flow Session</div>
+    <div id="session-info" class="session-info" style="display: none;"></div>
+  </div>
+  
+  <div class="instructions">
+    <p>Start a Flow Session from your FlowState dashboard to activate focus protection.</p>
+    <p>The extension will block distracting websites and help you stay on track.</p>
+  </div>
+  
+  <div class="footer">
+    FlowState v1.0.0
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

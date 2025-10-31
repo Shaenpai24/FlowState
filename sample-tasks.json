@@ -1,0 +1,182 @@
+[
+  {
+    "title": "Complete Machine Learning Assignment",
+    "description": "Implement neural network for image classification using TensorFlow. Due next Friday.",
+    "status": "in-progress",
+    "priority": "urgent",
+    "tags": ["assignment", "ml", "tensorflow", "coding"],
+    "estimatedTime": 8,
+    "actualTime": 5
+  },
+  {
+    "title": "Study for Database Systems Midterm",
+    "description": "Review SQL queries, normalization, indexing, and transaction management concepts.",
+    "status": "todo",
+    "priority": "high",
+    "tags": ["exam", "database", "sql", "study"],
+    "estimatedTime": 6,
+    "actualTime": 0
+  },
+  {
+    "title": "Build React Portfolio Website",
+    "description": "Create personal portfolio showcasing projects with responsive design and dark mode.",
+    "status": "in-progress",
+    "priority": "medium",
+    "tags": ["portfolio", "react", "web-dev", "personal"],
+    "estimatedTime": 12,
+    "actualTime": 8
+  },
+  {
+    "title": "Grocery Shopping",
+    "description": "Buy ingredients for meal prep: chicken, rice, vegetables, fruits, and snacks.",
+    "status": "todo",
+    "priority": "medium",
+    "tags": ["shopping", "food", "weekly"],
+    "estimatedTime": 2,
+    "actualTime": 0
+  },
+  {
+    "title": "Laundry and Room Cleaning",
+    "description": "Wash clothes, organize desk, vacuum room, and change bed sheets.",
+    "status": "todo",
+    "priority": "low",
+    "tags": ["chores", "cleaning", "weekly"],
+    "estimatedTime": 3,
+    "actualTime": 0
+  },
+  {
+    "title": "Prepare Hackathon Presentation",
+    "description": "Create slides, practice demo, and prepare for Q&A session. Focus on technical architecture.",
+    "status": "in-progress",
+    "priority": "urgent",
+    "tags": ["hackathon", "presentation", "demo"],
+    "estimatedTime": 4,
+    "actualTime": 2
+  },
+  {
+    "title": "Read Research Papers on AI Ethics",
+    "description": "Review 3 papers on bias in machine learning for philosophy class discussion.",
+    "status": "todo",
+    "priority": "medium",
+    "tags": ["research", "ai-ethics", "reading", "philosophy"],
+    "estimatedTime": 4,
+    "actualTime": 0
+  },
+  {
+    "title": "Gym Workout Session",
+    "description": "Upper body strength training: bench press, pull-ups, shoulder press, and core exercises.",
+    "status": "completed",
+    "priority": "medium",
+    "tags": ["fitness", "health", "routine"],
+    "estimatedTime": 2,
+    "actualTime": 2
+  },
+  {
+    "title": "Call Parents and Grandparents",
+    "description": "Weekly family check-in call. Ask about health, share updates about school and projects.",
+    "status": "completed",
+    "priority": "high",
+    "tags": ["family", "personal", "weekly"],
+    "estimatedTime": 1,
+    "actualTime": 1
+  },
+  {
+    "title": "Debug Authentication System",
+    "description": "Fix login issues in the web app. Check Firebase configuration and error handling.",
+    "status": "completed",
+    "priority": "urgent",
+    "tags": ["debugging", "firebase", "authentication", "web-dev"],
+    "estimatedTime": 3,
+    "actualTime": 4
+  },
+  {
+    "title": "Meal Prep for the Week",
+    "description": "Cook chicken, rice, and vegetables for 5 days. Prepare healthy snacks and portion meals.",
+    "status": "todo",
+    "priority": "medium",
+    "tags": ["meal-prep", "cooking", "health", "weekly"],
+    "estimatedTime": 3,
+    "actualTime": 0
+  },
+  {
+    "title": "Apply for Summer Internships",
+    "description": "Submit applications to Google, Microsoft, and Meta. Update resume and write cover letters.",
+    "status": "in-progress",
+    "priority": "high",
+    "tags": ["internship", "career", "applications"],
+    "estimatedTime": 6,
+    "actualTime": 3
+  },
+  {
+    "title": "Team Meeting for Group Project",
+    "description": "Discuss project timeline, assign tasks, and review progress on the mobile app prototype.",
+    "status": "completed",
+    "priority": "high",
+    "tags": ["teamwork", "meeting", "mobile-app", "project"],
+    "estimatedTime": 2,
+    "actualTime": 2
+  },
+  {
+    "title": "Learn Docker and Kubernetes",
+    "description": "Complete online course modules on containerization and orchestration for DevOps skills.",
+    "status": "in-progress",
+    "priority": "medium",
+    "tags": ["learning", "docker", "kubernetes", "devops"],
+    "estimatedTime": 8,
+    "actualTime": 4
+  },
+  {
+    "title": "Write Blog Post on React Hooks",
+    "description": "Technical article explaining useState, useEffect, and custom hooks with code examples.",
+    "status": "todo",
+    "priority": "low",
+    "tags": ["writing", "blog", "react", "tutorial"],
+    "estimatedTime": 4,
+    "actualTime": 0
+  },
+  {
+    "title": "Schedule Dentist Appointment",
+    "description": "Book routine cleaning and checkup. Call during office hours and confirm insurance coverage.",
+    "status": "todo",
+    "priority": "medium",
+    "tags": ["health", "appointment", "personal"],
+    "estimatedTime": 1,
+    "actualTime": 0
+  },
+  {
+    "title": "Review and Merge Pull Requests",
+    "description": "Code review for team members' contributions to the open source project. Check for bugs and style.",
+    "status": "in-progress",
+    "priority": "medium",
+    "tags": ["code-review", "open-source", "collaboration"],
+    "estimatedTime": 2,
+    "actualTime": 1
+  },
+  {
+    "title": "Plan Weekend Trip with Friends",
+    "description": "Research destinations, book accommodations, and coordinate transportation for spring break trip.",
+    "status": "todo",
+    "priority": "low",
+    "tags": ["travel", "friends", "planning", "fun"],
+    "estimatedTime": 3,
+    "actualTime": 0
+  },
+  {
+    "title": "Update LinkedIn Profile",
+    "description": "Add recent projects, update skills section, and write professional summary highlighting achievements.",
+    "status": "completed",
+    "priority": "medium",
+    "tags": ["linkedin", "professional", "networking"],
+    "estimatedTime": 2,
+    "actualTime": 2
+  },
+  {
+    "title": "Practice Coding Interview Questions",
+    "description": "Solve 5 LeetCode problems focusing on dynamic programming and graph algorithms.",
+    "status": "in-progress",
+    "priority": "high",
+    "tags": ["interview-prep", "algorithms", "leetcode", "coding"],
+    "estimatedTime": 3,
+    "actualTime": 2
+  }
+]
