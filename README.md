@@ -440,7 +440,7 @@ gantt
 
 ## 🏆 **Ready to Enter Your Flow State?**
 
-**Built with ❤️ for the hackathon by the FlowState team**
+**Built with ❤️ for the Think, Run, Debug hackathon by Computer Societyr of India @ASEB by the Team Love da Code**
 
 *Let's build the future of productivity together.*
 
