@@ -50,6 +50,7 @@ export function KanbanBoard() {
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [decomposingTaskId, setDecomposingTaskId] = useState<string | null>(null)
+  const [defaultStatus, setDefaultStatus] = useState<'todo' | 'in-progress' | 'completed'>('todo')
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -106,102 +107,112 @@ export function KanbanBoard() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 md:mb-6 gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">
             Kanban Board
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs md:text-sm text-muted-foreground mt-1 hidden sm:block">
             Drag and drop tasks to update their status
           </p>
         </div>
         
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 md:space-x-3 w-full sm:w-auto">
           <Button
             variant="outline"
             onClick={() => setCreateDialogOpen(true)}
-            className="flex items-center space-x-2"
+            className="flex items-center space-x-2 flex-1 sm:flex-none"
+            size="sm"
           >
             <Plus className="h-4 w-4" />
-            <span>Add Task</span>
+            <span className="hidden sm:inline">Add Task</span>
+            <span className="sm:hidden">Add</span>
           </Button>
           
           <Button
             variant="gradient"
             onClick={() => setCreateDialogOpen(true)}
-            className="flex items-center space-x-2"
+            className="flex items-center space-x-2 flex-1 sm:flex-none"
+            size="sm"
           >
             <Sparkles className="h-4 w-4" />
-            <span>Quick Add</span>
+            <span className="hidden sm:inline">Quick Add</span>
+            <span className="sm:hidden">Quick</span>
           </Button>
         </div>
       </div>
 
       {/* Board */}
-      <div className="flex-1 overflow-hidden">
-        <DndContext
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="grid grid-cols-3 gap-6 h-full">
-            {updatedColumns.map((column) => (
-              <KanbanColumn
-                key={column.id}
-                column={column}
-                tasks={tasksByStatus[column.id as keyof typeof tasksByStatus]}
-                onDecomposeTask={handleDecomposeTask}
-                decomposingTaskId={decomposingTaskId}
-              />
-            ))}
-          </div>
-
-          <DragOverlay>
-            {activeTask ? (
-              <div className="rotate-3 opacity-90">
-                <TaskCard
-                  task={activeTask}
-                  onDecomposeTask={handleDecomposeTask}
-                  isDecomposing={false}
-                />
-              </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      </div>
-
-      {/* Empty State */}
-      {projectTasks.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex-1 flex items-center justify-center"
-        >
-          <div className="text-center max-w-md">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Brain className="w-8 h-8 text-white" />
+      {projectTasks.length === 0 ? (
+        /* Empty State */
+        <div className="flex-1 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center max-w-md"
+          >
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-3 md:mb-4">
+              <Brain className="w-6 h-6 md:w-8 md:h-8 text-white" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
               Ready to get productive?
             </h3>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-sm text-muted-foreground mb-4 md:mb-6">
               Create your first task and let AI help you break it down into manageable steps.
             </p>
             <Button
               onClick={() => setCreateDialogOpen(true)}
               variant="gradient"
-              className="flex items-center space-x-2"
+              className="flex items-center space-x-2 mx-auto"
+              size="sm"
             >
               <Plus className="h-4 w-4" />
               <span>Create Your First Task</span>
             </Button>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
+      ) : (
+        <div className="flex-1 min-h-0 overflow-auto">
+          <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 min-h-full pb-4">
+              {updatedColumns.map((column) => (
+                <KanbanColumn
+                  key={column.id}
+                  column={column}
+                  tasks={tasksByStatus[column.id as keyof typeof tasksByStatus]}
+                  onDecomposeTask={handleDecomposeTask}
+                  decomposingTaskId={decomposingTaskId}
+                  onAddTask={(status) => {
+                    setDefaultStatus(status)
+                    setCreateDialogOpen(true)
+                  }}
+                />
+              ))}
+            </div>
+
+            <DragOverlay>
+              {activeTask ? (
+                <div className="rotate-3 opacity-90">
+                  <TaskCard
+                    task={activeTask}
+                    onDecomposeTask={handleDecomposeTask}
+                    isDecomposing={false}
+                  />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        </div>
       )}
 
       <CreateTaskDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
+        defaultStatus={defaultStatus}
       />
     </div>
   )

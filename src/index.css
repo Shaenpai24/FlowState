@@ -56,6 +56,19 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    overflow-x: hidden;
+  }
+  
+  /* Ensure proper responsive behavior */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Fix mobile viewport issues */
+  @media (max-width: 768px) {
+    body {
+      font-size: 14px;
+    }
   }
 }
 
@@ -134,4 +147,93 @@
 .dark .shimmer {
   background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
   background-size: 200px 100%;
+}
+
+/* Responsive utilities */
+.mobile-hidden {
+  @media (max-width: 768px) {
+    display: none !important;
+  }
+}
+
+.mobile-only {
+  @media (min-width: 769px) {
+    display: none !important;
+  }
+}
+
+/* Fix command palette on mobile */
+@media (max-width: 640px) {
+  .command-palette {
+    width: 95vw !important;
+    max-width: none !important;
+    margin: 0 2.5vw !important;
+  }
+}
+
+/* Improve touch targets on mobile */
+@media (max-width: 768px) {
+  button, .clickable {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better mobile graph view */
+  .task-node {
+    min-width: 80px !important;
+    min-height: 80px !important;
+  }
+}
+
+/* Prevent text selection during drag operations */
+.task-node {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Smooth transitions for graph elements */
+.task-node, .task-node > div {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Better scrollbar for graph panels */
+.graph-panel {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
+
+.graph-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.graph-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.graph-panel::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 4px;
+}
+
+.graph-panel::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.7);
+}
+
+/* Graph connection animations */
+@keyframes dash {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+/* Pulse animation for linking mode */
+@keyframes linkPulse {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  50% { 
+    box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+  }
 }

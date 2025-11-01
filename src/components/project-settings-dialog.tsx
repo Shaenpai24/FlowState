@@ -82,8 +82,8 @@ export function ProjectSettingsDialog({ open, onOpenChange }: ProjectSettingsDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] bg-white dark:bg-slate-900 flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center space-x-2">
             <span className="text-2xl">{currentProject.icon}</span>
             <span>Project Settings</span>
@@ -94,7 +94,7 @@ export function ProjectSettingsDialog({ open, onOpenChange }: ProjectSettingsDia
         </DialogHeader>
 
         {!showResetConfirm && !showDeleteConfirm ? (
-          <div className="space-y-6">
+          <div className="space-y-4 overflow-y-auto flex-1 pr-2">
             {/* Project Info */}
             <div className="space-y-4">
               <div className="space-y-2">
@@ -114,7 +114,8 @@ export function ProjectSettingsDialog({ open, onOpenChange }: ProjectSettingsDia
                   value={projectDescription}
                   onChange={(e) => setProjectDescription(e.target.value)}
                   placeholder="Describe your project"
-                  rows={3}
+                  rows={2}
+                  className="resize-none"
                 />
               </div>
 
@@ -141,32 +142,33 @@ export function ProjectSettingsDialog({ open, onOpenChange }: ProjectSettingsDia
             </div>
 
             {/* Project Stats */}
-            <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-4">
-              <h4 className="font-medium mb-3 text-gray-900 dark:text-gray-100">Project Statistics</h4>
-              <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-3">
+              <h4 className="font-medium mb-2 text-sm text-gray-900 dark:text-gray-100">Project Statistics</h4>
+              <div className="grid grid-cols-3 gap-3 text-center">
                 <div>
-                  <div className="text-2xl font-bold text-blue-600">{projectTasks.length}</div>
+                  <div className="text-xl font-bold text-blue-600">{projectTasks.length}</div>
                   <div className="text-xs text-muted-foreground">Tasks</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-green-600">
+                  <div className="text-xl font-bold text-green-600">
                     {projectTasks.filter(t => t.status === 'completed').length}
                   </div>
                   <div className="text-xs text-muted-foreground">Completed</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-purple-600">{projectNotes.length}</div>
+                  <div className="text-xl font-bold text-purple-600">{projectNotes.length}</div>
                   <div className="text-xs text-muted-foreground">Notes</div>
                 </div>
               </div>
             </div>
 
             {/* Actions */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               <Button
                 onClick={handleExport}
                 variant="outline"
                 className="w-full justify-start"
+                size="sm"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Export Project Data (JSON)
@@ -176,6 +178,7 @@ export function ProjectSettingsDialog({ open, onOpenChange }: ProjectSettingsDia
                 onClick={() => setShowResetConfirm(true)}
                 variant="outline"
                 className="w-full justify-start text-orange-600 border-orange-200 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                size="sm"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Reset Project (Clear All Data)
@@ -185,6 +188,7 @@ export function ProjectSettingsDialog({ open, onOpenChange }: ProjectSettingsDia
                 onClick={() => setShowDeleteConfirm(true)}
                 variant="outline"
                 className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20"
+                size="sm"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete Project
@@ -237,33 +241,33 @@ export function ProjectSettingsDialog({ open, onOpenChange }: ProjectSettingsDia
           </motion.div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="flex-shrink-0 mt-4">
           {!showResetConfirm && !showDeleteConfirm ? (
             <>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <Button variant="outline" onClick={() => onOpenChange(false)} size="sm">
                 Cancel
               </Button>
-              <Button onClick={handleSave}>
+              <Button onClick={handleSave} size="sm">
                 <Save className="h-4 w-4 mr-2" />
                 Save Changes
               </Button>
             </>
           ) : showResetConfirm ? (
             <>
-              <Button variant="outline" onClick={() => setShowResetConfirm(false)}>
+              <Button variant="outline" onClick={() => setShowResetConfirm(false)} size="sm">
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={handleReset}>
+              <Button variant="destructive" onClick={handleReset} size="sm">
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Reset Project
               </Button>
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+              <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} size="sm">
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={handleDelete}>
+              <Button variant="destructive" onClick={handleDelete} size="sm">
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete Project
               </Button>

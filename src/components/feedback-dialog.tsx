@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useFlowStore } from '@/store/flow-store'
+import { authService } from '@/services/auth-service'
 import {
   MessageSquare,
   Bug,
@@ -37,6 +38,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [error, setError] = useState('')
 
   const feedbackTypes = [
     {
@@ -81,8 +83,23 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
     if (!title.trim() || !description.trim()) return
 
     setIsSubmitting(true)
+    setError('')
     
     try {
+      console.log('Submitting feedback...', { type, title, description, rating })
+      
+      // Submit to Firebase
+      const feedbackId = await authService.submitFeedback({
+        type,
+        title: title.trim(),
+        description: description.trim(),
+        rating,
+        userEmail: email.trim() || undefined,
+      })
+      
+      console.log('Feedback submitted to Firebase:', feedbackId)
+
+      // Also save locally
       createFeedback({
         type,
         title: title.trim(),
@@ -90,6 +107,8 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
         rating,
         userEmail: email.trim() || undefined,
       })
+      
+      console.log('Feedback saved locally')
 
       setIsSubmitted(true)
       setTimeout(() => {
@@ -101,9 +120,11 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
         setEmail('')
         setRating(5)
         setType('general')
+        setError('')
       }, 2000)
-    } catch (error) {
-      console.error('Error submitting feedback:', error)
+    } catch (err: any) {
+      console.error('Error submitting feedback:', err)
+      setError(err.message || 'Failed to submit feedback. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -135,8 +156,8 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] bg-white dark:bg-slate-900 flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center space-x-2">
             <MessageSquare className="h-5 w-5 text-purple-600" />
             <span>Share Your Feedback</span>
@@ -146,17 +167,17 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4 overflow-y-auto flex-1 pr-2">
           {/* Feedback Type */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <Label>What type of feedback is this?</Label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               {feedbackTypes.map((feedbackType) => (
                 <button
                   key={feedbackType.id}
                   onClick={() => setType(feedbackType.id)}
                   className={`
-                    p-3 rounded-lg border-2 transition-all text-left
+                    p-2 rounded-lg border-2 transition-all text-left
                     ${type === feedbackType.id 
                       ? `${feedbackType.bgColor} ${feedbackType.borderColor}` 
                       : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
@@ -165,7 +186,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
                 >
                   <div className="flex items-center space-x-2 mb-1">
                     <feedbackType.icon className={`h-4 w-4 ${feedbackType.color}`} />
-                    <span className="font-medium text-sm">{feedbackType.label}</span>
+                    <span className="font-medium text-xs">{feedbackType.label}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{feedbackType.description}</p>
                 </button>
@@ -193,8 +214,9 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Please provide detailed information about your feedback..."
-              rows={4}
+              rows={3}
               maxLength={1000}
+              className="resize-none"
             />
             <p className="text-xs text-muted-foreground text-right">
               {description.length}/1000 characters
@@ -240,9 +262,25 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
               We'll only use this to follow up on your feedback if needed.
             </p>
           </div>
+
+          {/* Sign In Reminder */}
+          {!authService.getCurrentUser() && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                💡 <strong>Tip:</strong> Sign in to track your feedback and receive admin responses in "My Feedback"
+              </p>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            </div>
+          )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-shrink-0 mt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

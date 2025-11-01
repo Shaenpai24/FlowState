@@ -1,0 +1,77 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Production build
+dist/
+build/
+
+# Environment variables (IMPORTANT - Contains secrets!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Firebase (IMPORTANT - Contains API keys!)
+.firebase/
+.firebaserc
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+*.log
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.parcel-cache/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Migration scripts (temporary)
+migrate-to-subcollections.ts
+run-migration.html
+
+# Zip files
+*.zip
+
+# Optional: Documentation (if you want to keep repo clean)
+# Uncomment these if you don't want to push all the docs
+# ADMIN_ACCESS_FIX.md
+# ADMIN_SETUP.md
+# AUTH_STATUS.md
+# CHANGELOG.md
+# DEPLOYMENT_CHECKLIST.md
+# DEPLOYMENT_SUCCESS.md
+# EMAIL_AUTH_GUIDE.md
+# FEEDBACK_RESPONSE_GUIDE.md
+# FEEDBACK_SYSTEM.md
+# FIRESTORE_STRUCTURE_PROPOSAL.md
+# IMPLEMENTATION_SUMMARY.md
+# MIGRATION_GUIDE.md
+# QUICK_START.md
+# README_FEEDBACK.md
+# STRUCTURE_COMPARISON.md
+# SUBCOLLECTION_MIGRATION_COMPLETE.md
+# SYSTEM_ARCHITECTURE.md

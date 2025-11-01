@@ -139,7 +139,7 @@ export function AiChat() {
     return (
       <Button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 z-50"
+        className="fixed bottom-4 right-4 md:bottom-6 md:right-6 h-12 w-12 md:h-14 md:w-14 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 z-40"
         size="icon"
       >
         <Bot className="h-6 w-6 text-white" />
@@ -151,9 +151,9 @@ export function AiChat() {
     <motion.div
       initial={{ opacity: 0, scale: 0.9, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      className="fixed bottom-6 right-6 z-50"
+      className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-40"
     >
-      <Card className={`w-96 flex flex-col shadow-2xl border-2 ${
+      <Card className={`w-[calc(100vw-2rem)] sm:w-96 max-h-[80vh] flex flex-col shadow-2xl border-2 ${
         isMinimized ? 'h-14' : 'h-[500px]'
       } transition-all duration-300`}>
         <CardHeader className="pb-2 border-b">

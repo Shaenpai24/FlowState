@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Brain,
   Play,
+  Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -36,7 +37,7 @@ interface Connection {
 }
 
 export function TaskGraphView() {
-  const { tasks, activeProject, decomposeTask, startFlowSession } = useFlowStore()
+  const { tasks, activeProject, decomposeTask, startFlowSession, deleteTask } = useFlowStore()
   const svgRef = useRef<SVGSVGElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   
@@ -50,24 +51,29 @@ export function TaskGraphView() {
   // const [isDragging, setIsDragging] = useState<string | null>(null)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [quickAddLinkedTo, setQuickAddLinkedTo] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
 
   const projectTasks = tasks.filter(task => task.projectId === activeProject)
 
-  // Initialize nodes with better positioning
+  // Large circle layout so nodes don't overlap
   useEffect(() => {
     if (projectTasks.length === 0) return
 
+    const centerX = 400
+    const centerY = 300
+    // Much larger radius based on number of nodes
+    const radius = Math.max(300, projectTasks.length * 25)
+
     const newNodes: TaskNode[] = projectTasks.map((task, index) => {
       const angle = (index / projectTasks.length) * 2 * Math.PI
-      const radius = Math.min(200 + projectTasks.length * 20, 400)
-      const centerX = 400
-      const centerY = 300
+      const x = centerX + Math.cos(angle) * radius
+      const y = centerY + Math.sin(angle) * radius
       
       return {
         id: task.id,
         task,
-        x: centerX + Math.cos(angle) * radius,
-        y: centerY + Math.sin(angle) * radius,
+        x: x,
+        y: y,
         connections: []
       }
     })
@@ -100,29 +106,44 @@ export function TaskGraphView() {
   }
 
   const handleNodeClick = (nodeId: string) => {
-    if (linkingMode && linkFrom && linkFrom !== nodeId) {
-      // Create connection
-      const newConnection: Connection = {
-        from: linkFrom,
-        to: nodeId,
-        type: 'dependency'
+    // Don't handle clicks if we were just dragging
+    if (isDragging) return
+    
+    if (linkingMode) {
+      if (!linkFrom) {
+        setLinkFrom(nodeId)
+      } else if (linkFrom === nodeId) {
+        setLinkFrom(null)
+      } else {
+        // Create connection
+        setConnections(prev => [...prev, {
+          from: linkFrom,
+          to: nodeId,
+          type: 'dependency'
+        }])
+        setLinkingMode(false)
+        setLinkFrom(null)
       }
-      setConnections(prev => [...prev, newConnection])
-      setLinkingMode(false)
-      setLinkFrom(null)
-    } else if (linkingMode) {
-      setLinkFrom(nodeId)
     } else {
       setSelectedNode(selectedNode === nodeId ? null : nodeId)
     }
   }
 
   const handleNodeDrag = (nodeId: string, deltaX: number, deltaY: number) => {
+    console.log('Dragging node:', nodeId, 'delta:', deltaX, deltaY)
+    setIsDragging(true)
     setNodes(prev => prev.map(node => 
       node.id === nodeId 
-        ? { ...node, x: node.x + deltaX, y: node.y + deltaY }
+        ? { ...node, x: node.x + deltaX / zoom, y: node.y + deltaY / zoom }
         : node
     ))
+  }
+
+  const handleDragEnd = () => {
+    // Small delay to prevent click events immediately after dragging
+    setTimeout(() => {
+      setIsDragging(false)
+    }, 100)
   }
 
   const removeConnection = (from: string, to: string) => {
@@ -148,7 +169,7 @@ export function TaskGraphView() {
     <div className="h-full flex">
       {/* Main Graph Area */}
       <div 
-        className="flex-1 relative overflow-hidden bg-slate-950" 
+        className="flex-1 relative overflow-hidden bg-slate-950 flex items-center justify-center" 
         style={{
           backgroundImage: `
             radial-gradient(circle at 25px 25px, rgba(100,116,139,0.1) 1px, transparent 0),
@@ -159,18 +180,22 @@ export function TaskGraphView() {
         onWheel={(e) => {
           e.preventDefault()
           const delta = e.deltaY > 0 ? -0.1 : 0.1
-          setZoom(prev => Math.max(0.3, Math.min(3, prev + delta)))
+          setZoom(prev => Math.max(0.5, Math.min(2, prev + delta)))
         }}
         onMouseDown={(e) => {
-          if (e.button === 0 && !(e.target as HTMLElement).closest('.task-node')) { // Left click for panning (not on nodes)
+          if (e.button === 0 && !(e.target as HTMLElement).closest('.task-node')) {
             e.preventDefault()
-            const startX = e.clientX - pan.x
-            const startY = e.clientY - pan.y
+            const startX = e.clientX
+            const startY = e.clientY
+            const startPanX = pan.x
+            const startPanY = pan.y
             
             const handleMouseMove = (moveEvent: MouseEvent) => {
+              const deltaX = (moveEvent.clientX - startX) / zoom
+              const deltaY = (moveEvent.clientY - startY) / zoom
               setPan({
-                x: moveEvent.clientX - startX,
-                y: moveEvent.clientY - startY
+                x: startPanX + deltaX,
+                y: startPanY + deltaY
               })
             }
             
@@ -204,6 +229,7 @@ export function TaskGraphView() {
             onClick={() => {
               setLinkingMode(!linkingMode)
               setLinkFrom(null)
+              setSelectedNode(null)
             }}
           >
             <Link className="h-4 w-4 mr-1" />
@@ -225,6 +251,42 @@ export function TaskGraphView() {
           >
             <ZoomOut className="h-4 w-4" />
           </Button>
+          
+          <Button
+            className="bg-gray-700 hover:bg-gray-600 text-white border-gray-600"
+            size="sm"
+            onClick={() => {
+              // Fit all nodes to view like Obsidian
+              if (nodes.length === 0) return
+              
+              const minX = Math.min(...nodes.map(n => n.x)) - 100
+              const maxX = Math.max(...nodes.map(n => n.x)) + 100
+              const minY = Math.min(...nodes.map(n => n.y)) - 100
+              const maxY = Math.max(...nodes.map(n => n.y)) + 100
+              
+              const width = maxX - minX
+              const height = maxY - minY
+              const centerX = (minX + maxX) / 2
+              const centerY = (minY + maxY) / 2
+              
+              const scaleX = (window.innerWidth * 0.8) / width
+              const scaleY = (window.innerHeight * 0.8) / height
+              const newZoom = Math.min(scaleX, scaleY, 1.5)
+              
+              setZoom(newZoom)
+              setPan({
+                x: -centerX + 400,
+                y: -centerY + 300
+              })
+            }}
+            title="Fit to View"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+            </svg>
+          </Button>
+          
+
         </div>
 
         {/* Legend */}
@@ -268,28 +330,52 @@ export function TaskGraphView() {
                   <span>Low</span>
                 </div>
               </div>
+
+              <div className="space-y-2 pt-2 border-t border-gray-700">
+                <div className="text-gray-300 font-medium">Actions:</div>
+                <div className="text-xs text-gray-400">
+                  • 🖱️ Click connections to delete
+                </div>
+                <div className="text-xs text-gray-400">
+                  • ✋ Drag nodes to reposition
+                </div>
+                <div className="text-xs text-gray-400">
+                  • 🔗 Use Link Mode to connect tasks
+                </div>
+                <div className="text-xs text-gray-400">
+                  • 🖱️ Click nodes to select/link
+                </div>
+              </div>
             </div>
           </Card>
         </div>
 
-        {/* SVG Canvas */}
+        {/* Canvas Container */}
         <div 
           ref={containerRef}
-          className="w-full h-full"
-          style={{ transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)` }}
+          className="w-full h-full relative"
+          style={{ 
+            transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)`,
+            transformOrigin: 'center center'
+          }}
         >
+          {/* SVG for connections - same transform as nodes */}
           <svg
             ref={svgRef}
-            className="w-full h-full"
-            style={{ minWidth: '100%', minHeight: '100%' }}
+            className="absolute inset-0 pointer-events-none"
+            style={{ 
+              width: '100%', 
+              height: '100%',
+              overflow: 'visible'
+            }}
           >
             {/* Connections */}
             <defs>
               <marker
                 id="arrowhead"
                 markerWidth="12"
-                markerHeight="8"
-                refX="11"
+                markerHeight="12"
+                refX="10"
                 refY="4"
                 orient="auto"
                 markerUnits="strokeWidth"
@@ -297,13 +383,11 @@ export function TaskGraphView() {
                 <polygon
                   points="0 0, 12 4, 0 8"
                   fill="#4f46e5"
-                  fillOpacity="0.8"
                 />
               </marker>
               
-              {/* Glow filter for connections */}
               <filter id="glow">
-                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
                 <feMerge> 
                   <feMergeNode in="coloredBlur"/>
                   <feMergeNode in="SourceGraphic"/>
@@ -317,20 +401,60 @@ export function TaskGraphView() {
               
               if (!fromNode || !toNode) return null
               
-              // Calculate connection points on circle edges
+              // Line from edge to edge of circles
               const dx = toNode.x - fromNode.x
               const dy = toNode.y - fromNode.y
               const distance = Math.sqrt(dx * dx + dy * dy)
-              const radius = 40 // Approximate node radius
               
-              const startX = fromNode.x + (dx / distance) * radius
-              const startY = fromNode.y + (dy / distance) * radius
-              const endX = toNode.x - (dx / distance) * radius
-              const endY = toNode.y - (dy / distance) * radius
+              if (distance === 0) return null
+              
+              // Calculate precise visual radius:
+              // Node container is 100px, but we need to account for visual styling
+              // The actual visual edge appears to be slightly less due to borders/padding
+              const visualRadius = 48 // Slightly smaller to hit the visual edge
+              
+              // Start point (at the visual edge of from node)
+              const startX = fromNode.x + (dx / distance) * visualRadius
+              const startY = fromNode.y + (dy / distance) * visualRadius
+              
+              // End point (at the visual edge of to node, with space for arrow)
+              // Arrow needs about 8px space to not overlap the node
+              const endX = toNode.x - (dx / distance) * (visualRadius + 8)
+              const endY = toNode.y - (dx / distance) * (visualRadius + 8)
               
               return (
-                <g key={index}>
-                  {/* Connection Line */}
+                <g 
+                  key={`${conn.from}-${conn.to}-${index}`}
+                  className="group cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    console.log('Removing connection:', conn.from, '->', conn.to)
+                    removeConnection(conn.from, conn.to)
+                  }}
+                >
+                  {/* Background glow line */}
+                  <line
+                    x1={startX}
+                    y1={startY}
+                    x2={endX}
+                    y2={endY}
+                    stroke="#4f46e5"
+                    strokeWidth="6"
+                    opacity="0.3"
+                    filter="url(#glow)"
+                    className="pointer-events-none"
+                  />
+                  {/* Invisible thick line for easier clicking */}
+                  <line
+                    x1={startX}
+                    y1={startY}
+                    x2={endX}
+                    y2={endY}
+                    stroke="transparent"
+                    strokeWidth="15"
+                    className="pointer-events-auto"
+                  />
+                  {/* Main connection line */}
                   <line
                     x1={startX}
                     y1={startY}
@@ -338,41 +462,63 @@ export function TaskGraphView() {
                     y2={endY}
                     stroke="#4f46e5"
                     strokeWidth="3"
-                    strokeOpacity="0.7"
                     markerEnd="url(#arrowhead)"
-                    className="hover:stroke-blue-400 hover:stroke-opacity-100 cursor-pointer transition-all duration-200"
-                    onClick={() => removeConnection(conn.from, conn.to)}
+                    className="pointer-events-none transition-all duration-200 group-hover:stroke-red-400"
+                    opacity="0.9"
                   />
-                  
-                  {/* Connection Label */}
-                  <rect
-                    x={(startX + endX) / 2 - 25}
-                    y={(startY + endY) / 2 - 8}
-                    width="50"
-                    height="16"
-                    fill="rgba(79, 70, 229, 0.9)"
-                    rx="8"
-                    className="cursor-pointer"
-                    onClick={() => removeConnection(conn.from, conn.to)}
-                  />
+                  {/* Delete indicator on hover */}
                   <text
                     x={(startX + endX) / 2}
-                    y={(startY + endY) / 2 + 3}
+                    y={(startY + endY) / 2 - 10}
+                    fill="red"
+                    fontSize="12"
                     textAnchor="middle"
-                    className="text-[10px] fill-white pointer-events-none font-medium"
+                    className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 font-bold"
                   >
-                    {conn.type}
+                    ✕ Click to delete
                   </text>
+                  
+                  {/* Debug: Connection points (temporary - remove after testing) */}
+                  <circle cx={startX} cy={startY} r="3" fill="#00ff00" opacity="0.8" />
+                  <circle cx={endX} cy={endY} r="3" fill="#ff0000" opacity="0.8" />
                 </g>
               )
             })}
+            
+            {/* Debug: Node boundary circles (temporary) */}
+            {nodes.map((node) => (
+              <g key={`debug-${node.id}`}>
+                {/* Outer boundary (container) */}
+                <circle
+                  cx={node.x}
+                  cy={node.y}
+                  r="50"
+                  fill="none"
+                  stroke="yellow"
+                  strokeWidth="1"
+                  opacity="0.3"
+                  className="pointer-events-none"
+                />
+                {/* Visual boundary (where connections should hit) */}
+                <circle
+                  cx={node.x}
+                  cy={node.y}
+                  r="48"
+                  fill="none"
+                  stroke="orange"
+                  strokeWidth="2"
+                  opacity="0.7"
+                  className="pointer-events-none"
+                />
+              </g>
+            ))}
           </svg>
+
+
 
           {/* Task Nodes - Obsidian Style */}
           {nodes.map((node) => {
-            const nodeSize = 60 + (node.task.title.length * 0.8) // Dynamic size based on title length
-            const maxSize = 120
-            const finalSize = Math.min(nodeSize, maxSize)
+            const finalSize = 100 // Fixed size
             
             return (
               <motion.div
@@ -383,30 +529,40 @@ export function TaskGraphView() {
                   top: node.y - finalSize/2,
                   width: finalSize,
                   height: finalSize,
+                  zIndex: selectedNode === node.id ? 100 : 1
                 }}
                 drag
-                onDrag={(_, info) => handleNodeDrag(node.id, info.delta.x, info.delta.y)}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
+                dragMomentum={false}
+                dragElastic={0}
+                dragConstraints={false}
+                onDragStart={() => setIsDragging(true)}
+                onDrag={(_, info) => {
+                  handleNodeDrag(node.id, info.delta.x, info.delta.y)
+                }}
+                onDragEnd={handleDragEnd}
+                whileDrag={{ scale: 1.05, zIndex: 1000 }}
               >
                 {/* Node Circle */}
                 <div
                   className={`
-                    w-full h-full rounded-full cursor-pointer transition-all duration-300 
+                    w-full h-full rounded-full transition-all duration-200 
                     flex items-center justify-center text-center p-3
-                    shadow-lg hover:shadow-xl
-                    ${node.task.status === 'completed' ? 'bg-green-500 text-white' : ''}
-                    ${node.task.status === 'in-progress' ? 'bg-blue-500 text-white' : ''}
-                    ${node.task.status === 'todo' ? 'bg-gray-700 text-gray-100' : ''}
-                    ${selectedNode === node.id ? 'ring-4 ring-blue-400 ring-opacity-60' : ''}
-                    ${linkingMode && linkFrom === node.id ? 'ring-4 ring-green-400 ring-opacity-60' : ''}
+                    shadow-lg border-2
+                    ${isDragging ? 'cursor-grabbing' : 'cursor-grab hover:cursor-grab'}
+                    ${node.task.status === 'completed' ? 'bg-green-500 text-white border-green-400' : ''}
+                    ${node.task.status === 'in-progress' ? 'bg-blue-500 text-white border-blue-400' : ''}
+                    ${node.task.status === 'todo' ? 'bg-gray-700 text-gray-100 border-gray-600' : ''}
+                    ${selectedNode === node.id ? 'ring-4 ring-blue-400' : ''}
+                    ${linkingMode && linkFrom === node.id ? 'ring-4 ring-green-400' : ''}
                   `}
                   style={{
-                    borderLeft: `4px solid ${getPriorityColor(node.task.priority)}`,
+                    borderLeftColor: getPriorityColor(node.task.priority),
+                    borderLeftWidth: '4px',
+                    filter: isDragging ? 'brightness(1.1)' : 'none',
                   }}
                   onClick={() => handleNodeClick(node.id)}
                 >
-                  <span className="text-xs font-medium leading-tight line-clamp-3">
+                  <span className="text-xs font-medium leading-tight line-clamp-4 break-words">
                     {node.task.title}
                   </span>
                 </div>
@@ -453,13 +609,28 @@ export function TaskGraphView() {
 
         {/* Linking Instructions */}
         {linkingMode && (
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
-            <Card className="p-3 bg-blue-50 border-blue-200">
-              <p className="text-sm text-blue-800">
-                {linkFrom ? 'Click another task to create a connection' : 'Click a task to start linking'}
-              </p>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10"
+          >
+            <Card className="p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border-green-200 dark:border-green-800 shadow-lg">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <p className="text-sm text-green-800 dark:text-green-200 font-medium">
+                  {linkFrom 
+                    ? '✅ Source selected! Click another task to link them' 
+                    : '🔗 Linking Mode Active: Click a task to start'
+                  }
+                </p>
+              </div>
+              {linkFrom && (
+                <p className="text-xs text-green-600 dark:text-green-300 mt-1">
+                  Source: {nodes.find(n => n.id === linkFrom)?.task.title}
+                </p>
+              )}
             </Card>
-          </div>
+          </motion.div>
         )}
       </div>
 
@@ -553,6 +724,25 @@ export function TaskGraphView() {
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Linked Task
+                </Button>
+
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    if (confirm(`Delete "${selectedTask.title}"?`)) {
+                      // Remove all connections involving this task
+                      setConnections(prev => prev.filter(conn => 
+                        conn.from !== selectedTask.id && conn.to !== selectedTask.id
+                      ))
+                      deleteTask(selectedTask.id)
+                      setSelectedNode(null)
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Task
                 </Button>
               </div>
 

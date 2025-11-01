@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firestore Migration Tool</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .warning {
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+    }
+    .info {
+      background: #d1ecf1;
+      border: 2px solid #0dcaf0;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+    }
+    button {
+      background: #6366f1;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #4f46e5;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .danger {
+      background: #dc3545;
+    }
+    .danger:hover {
+      background: #c82333;
+    }
+    #log {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 20px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-top: 20px;
+      white-space: pre-wrap;
+      display: none;
+    }
+    .success {
+      color: #4ade80;
+    }
+    .error {
+      color: #f87171;
+    }
+    .info-text {
+      color: #60a5fa;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔄 Firestore Migration Tool</h1>
+    <p>Migrate feedback responses from arrays to subcollections</p>
+
+    <div class="warning">
+      <strong>⚠️ Warning:</strong> This will modify your Firestore database!
+      <ul>
+        <li>Existing feedback with response arrays will be migrated</li>
+        <li>Responses will be moved to subcollections</li>
+        <li>Old response arrays will be removed</li>
+        <li>This operation cannot be easily undone</li>
+      </ul>
+    </div>
+
+    <div class="info">
+      <strong>ℹ️ What this does:</strong>
+      <ul>
+        <li>Scans all feedback documents</li>
+        <li>Finds feedback with <code>responses</code> arrays</li>
+        <li>Creates <code>responses</code> subcollection for each</li>
+        <li>Moves each response to the subcollection</li>
+        <li>Adds <code>responseCount</code> field</li>
+        <li>Removes old <code>responses</code> array</li>
+      </ul>
+    </div>
+
+    <div style="margin: 30px 0;">
+      <button id="checkBtn" onclick="checkData()">
+        📊 Check Current Data
+      </button>
+      <button id="migrateBtn" class="danger" onclick="runMigration()" disabled>
+        🚀 Run Migration
+      </button>
+    </div>
+
+    <div id="log"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { 
+      getFirestore, 
+      collection, 
+      getDocs, 
+      doc, 
+      updateDoc, 
+      addDoc,
+      deleteField 
+    } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    // Your Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyAIcGfosgdYSbhN9AfsTfhJt0aSx-_XTdM",
+      authDomain: "love-da-code.firebaseapp.com",
+      projectId: "love-da-code",
+      storageBucket: "love-da-code.firebasestorage.app",
+      messagingSenderId: "610994141227",
+      appId: "1:610994141227:web:acba46a0bc50bfcaa0d26e",
+      measurementId: "G-V88769FQ3Q"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function log(message, type = 'info') {
+      const logDiv = document.getElementById('log');
+      logDiv.style.display = 'block';
+      const span = document.createElement('span');
+      span.className = type;
+      span.textContent = message + '\n';
+      logDiv.appendChild(span);
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    window.checkData = async function() {
+      const logDiv = document.getElementById('log');
+      logDiv.innerHTML = '';
+      log('🔍 Checking current data structure...', 'info-text');
+      
+      try {
+        const feedbackRef = collection(db, 'feedback');
+        const snapshot = await getDocs(feedbackRef);
+        
+        log(`\n📊 Found ${snapshot.size} feedback documents`, 'info-text');
+        
+        let needsMigration = 0;
+        let alreadyMigrated = 0;
+        
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          if (data.responses && Array.isArray(data.responses)) {
+            needsMigration++;
+            log(`  ✓ ${doc.id}: Has ${data.responses.length} responses in array (needs migration)`, 'info-text');
+          } else {
+            alreadyMigrated++;
+          }
+        });
+        
+        log(`\n📈 Summary:`, 'info-text');
+        log(`  • Needs migration: ${needsMigration}`, needsMigration > 0 ? 'error' : 'success');
+        log(`  • Already migrated: ${alreadyMigrated}`, 'success');
+        
+        if (needsMigration > 0) {
+          log(`\n✅ Ready to migrate ${needsMigration} feedback documents`, 'success');
+          document.getElementById('migrateBtn').disabled = false;
+        } else {
+          log(`\n✅ All feedback is already in the new format!`, 'success');
+          document.getElementById('migrateBtn').disabled = true;
+        }
+        
+      } catch (error) {
+        log(`\n❌ Error: ${error.message}`, 'error');
+      }
+    };
+
+    window.runMigration = async function() {
+      if (!confirm('⚠️ Are you sure? This will modify your database!')) {
+        return;
+      }
+      
+      const logDiv = document.getElementById('log');
+      logDiv.innerHTML = '';
+      log('🚀 Starting migration...', 'info-text');
+      
+      document.getElementById('migrateBtn').disabled = true;
+      document.getElementById('checkBtn').disabled = true;
+      
+      try {
+        const feedbackRef = collection(db, 'feedback');
+        const snapshot = await getDocs(feedbackRef);
+        
+        let migrated = 0;
+        let errors = 0;
+        
+        for (const feedbackDoc of snapshot.docs) {
+          const feedbackId = feedbackDoc.id;
+          const data = feedbackDoc.data();
+          
+          if (data.responses && Array.isArray(data.responses) && data.responses.length > 0) {
+            log(`\n📝 Migrating: ${data.title || feedbackId}`, 'info-text');
+            
+            try {
+              // Create subcollection
+              const responsesRef = collection(db, `feedback/${feedbackId}/responses`);
+              
+              for (const response of data.responses) {
+                await addDoc(responsesRef, {
+                  message: response.message,
+                  adminId: response.adminId || 'unknown',
+                  adminEmail: response.adminEmail,
+                  createdAt: response.createdAt,
+                  feedbackId: feedbackId
+                });
+              }
+              
+              // Update feedback doc
+              await updateDoc(doc(db, 'feedback', feedbackId), {
+                responseCount: data.responses.length,
+                updatedAt: new Date(),
+                responses: deleteField()
+              });
+              
+              log(`  ✅ Migrated ${data.responses.length} responses`, 'success');
+              migrated++;
+              
+            } catch (error) {
+              log(`  ❌ Error: ${error.message}`, 'error');
+              errors++;
+            }
+          }
+        }
+        
+        log(`\n${'='.repeat(50)}`, 'info-text');
+        log(`📊 MIGRATION COMPLETE`, 'success');
+        log(`${'='.repeat(50)}`, 'info-text');
+        log(`✅ Successfully migrated: ${migrated}`, 'success');
+        log(`❌ Errors: ${errors}`, errors > 0 ? 'error' : 'success');
+        
+        if (errors === 0) {
+          log(`\n🎉 All done! Check your Firestore Console to verify.`, 'success');
+        }
+        
+      } catch (error) {
+        log(`\n❌ Fatal error: ${error.message}`, 'error');
+      } finally {
+        document.getElementById('checkBtn').disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>

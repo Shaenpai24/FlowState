@@ -3,6 +3,24 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useFlowStore } from '@/store/flow-store'
 import { cn, getPriorityColor } from '@/lib/utils'
 import {
@@ -14,8 +32,16 @@ import {
 } from 'lucide-react'
 
 export function CalendarView() {
-  const { tasks, activeProject } = useFlowStore()
+  const { tasks, activeProject, createTask } = useFlowStore()
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [showAddEvent, setShowAddEvent] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [eventForm, setEventForm] = useState({
+    title: '',
+    description: '',
+    priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
+    estimatedTime: 1,
+  })
 
   const projectTasks = tasks.filter(task => task.projectId === activeProject)
 
@@ -45,8 +71,13 @@ export function CalendarView() {
   const getTasksForDate = (date: Date) => {
     return projectTasks.filter(task => {
       if (!task.dueDate) return false
-      const taskDate = new Date(task.dueDate)
-      return taskDate.toDateString() === date.toDateString()
+      try {
+        const taskDate = new Date(task.dueDate)
+        if (isNaN(taskDate.getTime())) return false
+        return taskDate.toDateString() === date.toDateString()
+      } catch {
+        return false
+      }
     })
   }
 
@@ -65,6 +96,40 @@ export function CalendarView() {
     return date.getMonth() === currentDate.getMonth()
   }
 
+  const handleAddEvent = () => {
+    if (!activeProject || !eventForm.title.trim()) return
+
+    try {
+      createTask({
+        title: eventForm.title,
+        description: eventForm.description,
+        status: 'todo',
+        priority: eventForm.priority,
+        projectId: activeProject,
+        tags: ['calendar-event'],
+        estimatedTime: eventForm.estimatedTime,
+        dueDate: selectedDate || new Date(),
+      })
+
+      // Reset form
+      setEventForm({
+        title: '',
+        description: '',
+        priority: 'medium',
+        estimatedTime: 1,
+      })
+      setShowAddEvent(false)
+      setSelectedDate(null)
+    } catch (error) {
+      console.error('Error creating event:', error)
+    }
+  }
+
+  const handleDateClick = (date: Date) => {
+    setSelectedDate(date)
+    setShowAddEvent(true)
+  }
+
   return (
     <div className="h-full flex flex-col space-y-6">
       {/* Header */}
@@ -78,7 +143,10 @@ export function CalendarView() {
           </p>
         </div>
         
-        <Button variant="gradient" className="flex items-center space-x-2">
+        <Button 
+          onClick={() => setShowAddEvent(true)}
+          className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+        >
           <Plus className="h-4 w-4" />
           <span>Add Event</span>
         </Button>
@@ -148,10 +216,11 @@ export function CalendarView() {
                   animate={{ opacity: 1 }}
                   transition={{ delay: index * 0.01 }}
                   className={cn(
-                    "min-h-[120px] p-2 border-r border-b last:border-r-0 hover:bg-accent/50 transition-colors",
+                    "min-h-[120px] p-2 border-r border-b last:border-r-0 hover:bg-accent/50 transition-colors cursor-pointer",
                     !isCurrentMonthDay && "bg-muted/30 text-muted-foreground",
                     isTodayDate && "bg-primary/5 border-primary/20"
                   )}
+                  onClick={() => handleDateClick(date)}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className={cn(
@@ -217,28 +286,37 @@ export function CalendarView() {
           <div className="space-y-3">
             {projectTasks
               .filter(task => task.dueDate && task.status !== 'completed')
-              .sort((a, b) => (a.dueDate?.getTime() || 0) - (b.dueDate?.getTime() || 0))
+              .sort((a, b) => {
+                const dateA = a.dueDate ? new Date(a.dueDate).getTime() : 0
+                const dateB = b.dueDate ? new Date(b.dueDate).getTime() : 0
+                return dateA - dateB
+              })
               .slice(0, 5)
-              .map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
-                >
-                  <div className="flex-1">
-                    <h4 className="font-medium text-sm">{task.title}</h4>
-                    <p className="text-xs text-muted-foreground">
-                      Due: {task.dueDate?.toLocaleDateString()}
-                    </p>
-                  </div>
-                  
-                  <Badge
-                    variant="outline"
-                    className={getPriorityColor(task.priority)}
+              .map((task) => {
+                const dueDate = task.dueDate ? new Date(task.dueDate) : null
+                const isValidDate = dueDate && !isNaN(dueDate.getTime())
+                
+                return (
+                  <div
+                    key={task.id}
+                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
                   >
-                    {task.priority}
-                  </Badge>
-                </div>
-              ))}
+                    <div className="flex-1">
+                      <h4 className="font-medium text-sm">{task.title}</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Due: {isValidDate ? dueDate.toLocaleDateString() : 'No date set'}
+                      </p>
+                    </div>
+                    
+                    <Badge
+                      variant="outline"
+                      className={getPriorityColor(task.priority)}
+                    >
+                      {task.priority}
+                    </Badge>
+                  </div>
+                )
+              })}
             
             {projectTasks.filter(task => task.dueDate && task.status !== 'completed').length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
@@ -249,6 +327,90 @@ export function CalendarView() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Add Event Dialog */}
+      <Dialog open={showAddEvent} onOpenChange={setShowAddEvent}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add Event</DialogTitle>
+            <DialogDescription>
+              {selectedDate 
+                ? `Create a new event for ${selectedDate.toLocaleDateString()}`
+                : 'Create a new event'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                value={eventForm.title}
+                onChange={(e) => setEventForm(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Event title..."
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={eventForm.description}
+                onChange={(e) => setEventForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Event description..."
+                rows={3}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="priority">Priority</Label>
+                <Select
+                  value={eventForm.priority}
+                  onValueChange={(value: 'low' | 'medium' | 'high' | 'urgent') => 
+                    setEventForm(prev => ({ ...prev, priority: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="time">Estimated Time (hours)</Label>
+                <Input
+                  id="time"
+                  type="number"
+                  min="0.5"
+                  step="0.5"
+                  value={eventForm.estimatedTime}
+                  onChange={(e) => setEventForm(prev => ({ 
+                    ...prev, 
+                    estimatedTime: parseFloat(e.target.value) || 1 
+                  }))}
+                />
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddEvent(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddEvent} disabled={!eventForm.title.trim()}>
+              Add Event
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

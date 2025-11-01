@@ -51,11 +51,11 @@ export function FlowSessionWidget() {
         initial={{ opacity: 0, x: 300 }}
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: 300 }}
-        className="fixed right-6 top-20 z-50"
+        className="fixed right-2 top-16 md:right-6 md:top-20 z-30"
       >
         <Card className={cn(
-          "w-80 shadow-2xl border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20",
-          isMinimized && "w-64"
+          "w-[calc(100vw-1rem)] sm:w-80 shadow-2xl border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20",
+          isMinimized && "sm:w-64"
         )}>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">

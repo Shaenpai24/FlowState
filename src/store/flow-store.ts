@@ -56,15 +56,38 @@ export interface Note {
   updatedAt: Date
 }
 
+export interface FeedbackResponse {
+  id: string
+  feedbackId: string  // Reference to parent feedback
+  message: string
+  adminId: string
+  adminEmail: string
+  createdAt: Date
+  edited?: boolean
+  editedAt?: Date
+}
+
 export interface Feedback {
   id: string
   type: 'bug' | 'feature' | 'improvement' | 'general'
   title: string
   description: string
   rating: number
+  priority?: 'low' | 'medium' | 'high' | 'urgent'
   userEmail?: string
+  userId?: string
   createdAt: Date
+  updatedAt: Date
   status: 'pending' | 'reviewed' | 'resolved'
+  responseCount: number  // Denormalized for quick access
+  resolvedAt?: Date
+  resolvedBy?: string
+  tags?: string[]
+  metadata?: {
+    browser?: string
+    os?: string
+    appVersion?: string
+  }
 }
 
 interface FlowState {
@@ -107,9 +130,10 @@ interface FlowState {
   deleteNote: (id: string) => void
   
   // Feedback actions
-  createFeedback: (feedback: Omit<Feedback, 'id' | 'createdAt' | 'status'>) => void
+  createFeedback: (feedback: Omit<Feedback, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'responseCount'>) => void
   updateFeedback: (id: string, updates: Partial<Feedback>) => void
   deleteFeedback: (id: string) => void
+  loadFeedbackFromFirebase: (feedbackList: Feedback[]) => void
   
   // UI actions
   toggleCommandPalette: () => void
@@ -152,6 +176,9 @@ export const useFlowStore = create<FlowState>()(
               isArchived: false,
             }
             set({ projects: [defaultProject], activeProject: 'default' })
+          } else if (!state.activeProject) {
+            // Set first project as active if none is selected
+            set({ activeProject: state.projects[0].id })
           }
         },
 
@@ -405,7 +432,9 @@ export const useFlowStore = create<FlowState>()(
             ...feedbackData,
             id: crypto.randomUUID(),
             createdAt: new Date(),
+            updatedAt: new Date(),
             status: 'pending',
+            responseCount: 0,
           }
           set((state) => ({
             feedback: [...state.feedback, feedback],
@@ -427,6 +456,10 @@ export const useFlowStore = create<FlowState>()(
             feedback: state.feedback.filter((feedback) => feedback.id !== id),
           }))
         },
+
+        loadFeedbackFromFirebase: (feedbackList) => {
+          set({ feedback: feedbackList })
+        },
       }),
       {
         name: 'flowstate-storage',
@@ -439,6 +472,43 @@ export const useFlowStore = create<FlowState>()(
           sidebarCollapsed: state.sidebarCollapsed,
           currentView: state.currentView,
         }),
+        onRehydrateStorage: () => (state) => {
+          if (state) {
+            // Convert date strings back to Date objects
+            state.projects = state.projects.map(project => ({
+              ...project,
+              createdAt: new Date(project.createdAt),
+              updatedAt: new Date(project.updatedAt),
+            }))
+            
+            state.tasks = state.tasks.map(task => ({
+              ...task,
+              createdAt: new Date(task.createdAt),
+              updatedAt: new Date(task.updatedAt),
+              dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+              subtasks: task.subtasks.map(subtask => ({
+                ...subtask,
+                createdAt: new Date(subtask.createdAt),
+                updatedAt: new Date(subtask.updatedAt),
+                dueDate: subtask.dueDate ? new Date(subtask.dueDate) : undefined,
+              }))
+            }))
+            
+            state.notes = state.notes.map(note => ({
+              ...note,
+              createdAt: new Date(note.createdAt),
+              updatedAt: new Date(note.updatedAt),
+            }))
+            
+            state.feedback = state.feedback.map(feedback => ({
+              ...feedback,
+              createdAt: new Date(feedback.createdAt),
+              updatedAt: new Date(feedback.updatedAt),
+              resolvedAt: feedback.resolvedAt ? new Date(feedback.resolvedAt) : undefined,
+              responseCount: feedback.responseCount || 0,
+            }))
+          }
+        },
       }
     ),
     { name: 'FlowState Store' }

@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -12,71 +11,51 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { useFlowStore } from '@/store/flow-store'
-import { Brain, Plus, X, Sparkles } from 'lucide-react'
+import { useFlowStore, Task } from '@/store/flow-store'
+import { Plus, X, Save } from 'lucide-react'
 
-interface CreateTaskDialogProps {
+interface EditTaskDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  defaultStatus?: 'todo' | 'in-progress' | 'completed'
+  task: Task | null
 }
 
-export function CreateTaskDialog({ open, onOpenChange, defaultStatus = 'todo' }: CreateTaskDialogProps) {
-  const { createTask, activeProject, decomposeTask } = useFlowStore()
+export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps) {
+  const { updateTask } = useFlowStore()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium')
+  const [status, setStatus] = useState<'todo' | 'in-progress' | 'completed'>('todo')
   const [estimatedTime, setEstimatedTime] = useState('')
   const [tags, setTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState('')
-  const [autoDecompose, setAutoDecompose] = useState(false)
-  const [isCreating, setIsCreating] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!title.trim() || !activeProject) return
-
-    setIsCreating(true)
-
-    try {
-      const taskData = {
-        title: title.trim(),
-        description: description.trim() || undefined,
-        status: defaultStatus,
-        priority,
-        projectId: activeProject,
-        estimatedTime: estimatedTime ? parseInt(estimatedTime) : undefined,
-        tags,
-      }
-
-      createTask(taskData)
-
-      // If auto-decompose is enabled, decompose the task
-      if (autoDecompose) {
-        // Get the created task ID (in a real app, createTask would return the ID)
-        // For now, we'll simulate this
-        setTimeout(() => {
-          // This is a simplified approach - in production, you'd get the actual task ID
-          const tasks = useFlowStore.getState().tasks
-          const newTask = tasks[tasks.length - 1]
-          if (newTask) {
-            decomposeTask(newTask.id)
-          }
-        }, 100)
-      }
-
-      // Reset form
-      setTitle('')
-      setDescription('')
-      setPriority('medium')
-      setEstimatedTime('')
-      setTags([])
-      setNewTag('')
-      setAutoDecompose(false)
-      onOpenChange(false)
-    } finally {
-      setIsCreating(false)
+  // Populate form when task changes
+  useEffect(() => {
+    if (task) {
+      setTitle(task.title)
+      setDescription(task.description || '')
+      setPriority(task.priority)
+      setStatus(task.status)
+      setEstimatedTime(task.estimatedTime?.toString() || '')
+      setTags(task.tags)
     }
+  }, [task])
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!title.trim() || !task) return
+
+    updateTask(task.id, {
+      title: title.trim(),
+      description: description.trim() || undefined,
+      priority,
+      status,
+      estimatedTime: estimatedTime ? parseInt(estimatedTime) : undefined,
+      tags,
+    })
+
+    onOpenChange(false)
   }
 
   const addTag = () => {
@@ -97,13 +76,15 @@ export function CreateTaskDialog({ open, onOpenChange, defaultStatus = 'todo' }:
     }
   }
 
+  if (!task) return null
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
-            <Sparkles className="h-5 w-5 text-purple-600" />
-            <span>Create New Task</span>
+            <Save className="h-5 w-5 text-blue-600" />
+            <span>Edit Task</span>
           </DialogTitle>
         </DialogHeader>
 
@@ -133,8 +114,22 @@ export function CreateTaskDialog({ open, onOpenChange, defaultStatus = 'todo' }:
             />
           </div>
 
-          {/* Priority and Time */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Status, Priority and Time */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={status} onValueChange={(value: any) => setStatus(value)}>
+                <SelectTrigger className="focus-ring">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todo">To Do</SelectItem>
+                  <SelectItem value="in-progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label>Priority</Label>
               <Select value={priority} onValueChange={(value: any) => setPriority(value)}>
@@ -151,7 +146,7 @@ export function CreateTaskDialog({ open, onOpenChange, defaultStatus = 'todo' }:
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="time">Estimated Hours</Label>
+              <Label htmlFor="time">Est. Hours</Label>
               <Input
                 id="time"
                 type="number"
@@ -205,59 +200,22 @@ export function CreateTaskDialog({ open, onOpenChange, defaultStatus = 'todo' }:
             </div>
           </div>
 
-          {/* AI Decompose Option */}
-          <div className="flex items-center space-x-3 p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-            <input
-              type="checkbox"
-              id="autoDecompose"
-              checked={autoDecompose}
-              onChange={(e) => setAutoDecompose(e.target.checked)}
-              className="rounded border-purple-300 text-purple-600 focus:ring-purple-500"
-            />
-            <div className="flex-1">
-              <Label htmlFor="autoDecompose" className="flex items-center space-x-2 cursor-pointer">
-                <Brain className="h-4 w-4 text-purple-600" />
-                <span className="font-medium text-purple-900 dark:text-purple-100">
-                  AI Decompose
-                </span>
-              </Label>
-              <p className="text-xs text-purple-700 dark:text-purple-300 mt-1">
-                Automatically break this task into smaller, actionable steps using AI
-              </p>
-            </div>
-          </div>
-
           {/* Actions */}
           <div className="flex justify-end space-x-3 pt-4 border-t">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={isCreating}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              variant="gradient"
-              disabled={!title.trim() || isCreating}
+              disabled={!title.trim()}
               className="min-w-[120px]"
             >
-              {isCreating ? (
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  className="flex items-center space-x-2"
-                >
-                  <Brain className="h-4 w-4" />
-                  <span>Creating...</span>
-                </motion.div>
-              ) : (
-                <div className="flex items-center space-x-2">
-                  <Plus className="h-4 w-4" />
-                  <span>Create Task</span>
-                </div>
-              )}
+              <Save className="h-4 w-4 mr-2" />
+              Save Changes
             </Button>
           </div>
         </form>

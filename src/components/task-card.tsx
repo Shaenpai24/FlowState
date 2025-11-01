@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -11,10 +12,20 @@ import {
   User,
   Zap,
   Sparkles,
+  Trash2,
+  Edit,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { EditTaskDialog } from '@/components/edit-task-dialog'
 import { Task } from '@/store/flow-store'
 import { cn, getPriorityColor, formatRelativeTime } from '@/lib/utils'
 import { useFlowStore } from '@/store/flow-store'
@@ -26,7 +37,8 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onDecomposeTask, isDecomposing }: TaskCardProps) {
-  const { startFlowSession, currentSession } = useFlowStore()
+  const { startFlowSession, currentSession, deleteTask } = useFlowStore()
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
   
   const {
     attributes,
@@ -98,13 +110,42 @@ export function TaskCard({ task, onDecomposeTask, isDecomposing }: TaskCardProps
               )}
             </div>
             
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <MoreHorizontal className="h-3 w-3" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreHorizontal className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setEditDialogOpen(true)
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Task
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (confirm(`Delete "${task.title}"?`)) {
+                      deleteTask(task.id)
+                    }
+                  }}
+                  className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Task
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Tags */}
@@ -230,7 +271,12 @@ export function TaskCard({ task, onDecomposeTask, isDecomposing }: TaskCardProps
           )}
         </CardContent>
       </Card>
+
+      <EditTaskDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        task={task}
+      />
     </motion.div>
   )
 }
-

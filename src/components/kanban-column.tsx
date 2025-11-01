@@ -21,13 +21,15 @@ interface KanbanColumnProps {
   tasks: Task[]
   onDecomposeTask: (taskId: string) => void
   decomposingTaskId: string | null
+  onAddTask: (status: 'todo' | 'in-progress' | 'completed') => void
 }
 
 export function KanbanColumn({ 
   column, 
   tasks, 
   onDecomposeTask, 
-  decomposingTaskId 
+  decomposingTaskId,
+  onAddTask
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -58,6 +60,8 @@ export function KanbanColumn({
           variant="ghost"
           size="icon"
           className="h-6 w-6 opacity-60 hover:opacity-100"
+          onClick={() => onAddTask(column.id as 'todo' | 'in-progress' | 'completed')}
+          title={`Add task to ${column.title}`}
         >
           <Plus className="h-3 w-3" />
         </Button>
@@ -67,12 +71,12 @@ export function KanbanColumn({
       <div
         ref={setNodeRef}
         className={cn(
-          "flex-1 border-2 border-t-0 rounded-b-xl transition-all duration-200 flex flex-col",
+          "flex-1 min-h-0 border-2 border-t-0 rounded-b-xl transition-all duration-200 flex flex-col",
           column.color,
           isOver && "ring-2 ring-primary ring-offset-2 bg-primary/5"
         )}
       >
-        <div className="flex-1 overflow-y-auto p-4 pt-0 max-h-[calc(100vh-300px)]">
+        <div className="flex-1 overflow-y-auto p-4 pt-0">
           <SortableContext
             items={tasks.map(task => task.id)}
             strategy={verticalListSortingStrategy}

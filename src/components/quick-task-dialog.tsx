@@ -3,15 +3,17 @@ import { motion } from 'framer-motion'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { useFlowStore } from '@/store/flow-store'
-import { Plus, Zap } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 
 interface QuickTaskDialogProps {
   open: boolean
@@ -20,93 +22,114 @@ interface QuickTaskDialogProps {
 }
 
 export function QuickTaskDialog({ open, onOpenChange, linkedTaskId }: QuickTaskDialogProps) {
-  const { createTask, activeProject, tasks } = useFlowStore()
+  const { createTask, activeProject } = useFlowStore()
   const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium')
 
-  const linkedTask = linkedTaskId ? tasks.find(t => t.id === linkedTaskId) : null
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = () => {
     if (!title.trim() || !activeProject) return
 
     createTask({
       title: title.trim(),
-      description: linkedTask ? `Linked to: ${linkedTask.title}` : '',
+      description: description.trim(),
       status: 'todo',
       priority,
       projectId: activeProject,
-      tags: linkedTask ? [...linkedTask.tags, 'linked'] : [],
+      tags: linkedTaskId ? ['linked'] : [],
     })
 
     // Reset form
     setTitle('')
+    setDescription('')
     setPriority('medium')
     onOpenChange(false)
   }
 
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      handleSubmit()
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[400px]">
+      <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
-            <Zap className="h-5 w-5 text-blue-600" />
-            <span>Quick Add Task</span>
+            <Plus className="h-5 w-5 text-blue-600" />
+            <span>Create New Task</span>
           </DialogTitle>
-          {linkedTask && (
-            <p className="text-sm text-muted-foreground">
-              Creating task linked to: <span className="font-medium">{linkedTask.title}</span>
-            </p>
-          )}
+          <DialogDescription>
+            {linkedTaskId ? 'Create a linked task in the graph view.' : 'Add a new task to your project.'}
+          </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="title">Task Title</Label>
+            <Label htmlFor="task-title">Task Title</Label>
             <Input
-              id="title"
-              placeholder="What needs to be done?"
+              id="task-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="focus-ring"
-              required
+              onKeyPress={handleKeyPress}
+              placeholder="Enter task title..."
               autoFocus
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Priority</Label>
-            <Select value={priority} onValueChange={(value: any) => setPriority(value)}>
-              <SelectTrigger className="focus-ring">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="urgent">Urgent</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="task-description">Description (Optional)</Label>
+            <Textarea
+              id="task-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Add task description..."
+              rows={3}
+            />
           </div>
 
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="gradient"
-              disabled={!title.trim()}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Create Task
-            </Button>
+          <div className="space-y-2">
+            <Label>Priority</Label>
+            <div className="flex space-x-2">
+              {(['low', 'medium', 'high', 'urgent'] as const).map((p) => (
+                <Button
+                  key={p}
+                  variant={priority === p ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPriority(p)}
+                  className={`capitalize ${
+                    priority === p
+                      ? p === 'urgent'
+                        ? 'bg-red-600 hover:bg-red-700'
+                        : p === 'high'
+                        ? 'bg-orange-600 hover:bg-orange-700'
+                        : p === 'medium'
+                        ? 'bg-blue-600 hover:bg-blue-700'
+                        : 'bg-gray-600 hover:bg-gray-700'
+                      : ''
+                  }`}
+                >
+                  {p}
+                </Button>
+              ))}
+            </div>
           </div>
-        </form>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit}
+            disabled={!title.trim()}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Task
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

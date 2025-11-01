@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { useFlowStore } from '@/store/flow-store'
+import { authService } from '@/services/auth-service'
+import { FeedbackDoc } from '@/services/auth-service'
 import {
   Shield,
   MessageSquare,
@@ -20,13 +23,130 @@ import {
   Clock,
   AlertCircle,
   Trash2,
+  Send,
+  MessageCircle,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 
 export function AdminDashboard() {
-  const { feedback, updateFeedback, deleteFeedback } = useFlowStore()
+  const { loadFeedbackFromFirebase } = useFlowStore()
+  const [feedback, setFeedback] = useState<FeedbackDoc[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'bug' | 'feature' | 'improvement' | 'general'>('all')
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'reviewed' | 'resolved'>('all')
+  const [expandedFeedback, setExpandedFeedback] = useState<string | null>(null)
+  const [responseText, setResponseText] = useState<Record<string, string>>({})
+  const [isSubmittingResponse, setIsSubmittingResponse] = useState<string | null>(null)
+  const [responses, setResponses] = useState<Record<string, any[]>>({})
+
+  useEffect(() => {
+    loadFeedback()
+    
+    // Set up real-time listener
+    const setupRealtimeListener = async () => {
+      const { onSnapshot, collection, query, orderBy } = await import('firebase/firestore')
+      const { db } = await import('@/lib/firebase')
+      
+      const q = query(collection(db, 'feedback'), orderBy('createdAt', 'desc'))
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const feedbackList = snapshot.docs.map(doc => {
+          const data = doc.data()
+          return {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate(),
+            updatedAt: data.updatedAt?.toDate(),
+            resolvedAt: data.resolvedAt?.toDate(),
+            responseCount: data.responseCount || 0
+          }
+        })
+        setFeedback(feedbackList as any)
+        loadFeedbackFromFirebase(feedbackList as any)
+      }, (error) => {
+        console.error('Error in real-time listener:', error)
+      })
+      
+      return unsubscribe
+    }
+    
+    let unsubscribe: (() => void) | undefined
+    setupRealtimeListener().then(unsub => { unsubscribe = unsub })
+    
+    return () => {
+      if (unsubscribe) unsubscribe()
+    }
+  }, [])
+
+  const loadFeedback = async () => {
+    try {
+      const feedbackList = await authService.getFeedback()
+      setFeedback(feedbackList)
+      loadFeedbackFromFirebase(feedbackList as any)
+    } catch (error) {
+      console.error('Error loading feedback:', error)
+    }
+  }
+
+  const handleStatusChange = async (feedbackId: string, status: 'pending' | 'reviewed' | 'resolved') => {
+    try {
+      await authService.updateFeedbackStatus(feedbackId, status)
+      await loadFeedback()
+    } catch (error) {
+      console.error('Error updating status:', error)
+    }
+  }
+
+  const handleDeleteFeedback = async (feedbackId: string) => {
+    if (!confirm('Are you sure you want to delete this feedback?')) return
+    
+    try {
+      await authService.deleteFeedback(feedbackId)
+      await loadFeedback()
+    } catch (error) {
+      console.error('Error deleting feedback:', error)
+    }
+  }
+
+  const handleAddResponse = async (feedbackId: string) => {
+    const message = responseText[feedbackId]?.trim()
+    if (!message) return
+
+    setIsSubmittingResponse(feedbackId)
+    try {
+      const newResponse = await authService.addFeedbackResponse(feedbackId, message)
+      setResponseText({ ...responseText, [feedbackId]: '' })
+      
+      // Update local responses
+      setResponses(prev => ({
+        ...prev,
+        [feedbackId]: [...(prev[feedbackId] || []), newResponse]
+      }))
+      
+      // Reload feedback to update count
+      await loadFeedback()
+    } catch (error) {
+      console.error('Error adding response:', error)
+    } finally {
+      setIsSubmittingResponse(null)
+    }
+  }
+
+  const toggleExpanded = async (feedbackId: string) => {
+    const newExpanded = expandedFeedback === feedbackId ? null : feedbackId
+    setExpandedFeedback(newExpanded)
+    
+    // Load responses when expanding
+    if (newExpanded && !responses[feedbackId]) {
+      try {
+        const feedbackResponses = await authService.getFeedbackResponses(feedbackId)
+        setResponses(prev => ({ ...prev, [feedbackId]: feedbackResponses }))
+      } catch (error) {
+        console.error('Error loading responses:', error)
+      }
+    }
+  }
 
   const filteredFeedback = feedback.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -204,74 +324,247 @@ export function AdminDashboard() {
                 <p>No feedback found matching your filters.</p>
               </div>
             ) : (
-              filteredFeedback.map((item) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="border rounded-lg p-4 space-y-3 bg-card"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        {getTypeIcon(item.type)}
-                        <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                          {item.title}
-                        </h4>
-                        <Badge className={getTypeColor(item.type)}>
-                          {item.type}
-                        </Badge>
-                        <Badge className={getStatusColor(item.status)}>
-                          {getStatusIcon(item.status)}
-                          <span className="ml-1">{item.status}</span>
-                        </Badge>
+              filteredFeedback.map((item) => {
+                const isExpanded = expandedFeedback === item.id
+                return (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="border rounded-lg p-4 space-y-3 bg-card"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-2">
+                          {getTypeIcon(item.type)}
+                          <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                            {item.title}
+                          </h4>
+                          <Badge className={getTypeColor(item.type)}>
+                            {item.type}
+                          </Badge>
+                          <Badge className={getStatusColor(item.status)}>
+                            {getStatusIcon(item.status)}
+                            <span className="ml-1">{item.status}</span>
+                          </Badge>
+                          {item.responseCount > 0 && (
+                            <Badge variant="outline" className="bg-purple-50 dark:bg-purple-900/20">
+                              <MessageCircle className="h-3 w-3 mr-1" />
+                              {item.responseCount}
+                            </Badge>
+                          )}
+                          {item.type === 'general' && (
+                            <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
+                              Review
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <p className="text-sm text-muted-foreground mb-3">
+                          {item.description}
+                        </p>
+                        
+                        <div className="flex items-center space-x-4 text-xs text-muted-foreground">
+                          <div className="flex items-center space-x-1">
+                            <Star className="h-3 w-3 text-yellow-500" />
+                            <span>{item.rating}/5</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="h-3 w-3" />
+                            <span>{new Date(item.createdAt).toLocaleDateString()}</span>
+                          </div>
+                          {item.userEmail && (
+                            <div className="flex items-center space-x-1">
+                              <Mail className="h-3 w-3" />
+                              <span>{item.userEmail}</span>
+                            </div>
+                          )}
+                          {item.resolvedAt && (
+                            <div className="flex items-center space-x-1 text-green-600">
+                              <CheckCircle className="h-3 w-3" />
+                              <span>Resolved {new Date(item.resolvedAt).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {item.description}
-                      </p>
-                      
-                      <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                        <div className="flex items-center space-x-1">
-                          <Star className="h-3 w-3 text-yellow-500" />
-                          <span>{item.rating}/5</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="h-3 w-3" />
-                          <span>{new Date(item.createdAt).toLocaleDateString()}</span>
-                        </div>
-                        {item.userEmail && (
-                          <div className="flex items-center space-x-1">
-                            <Mail className="h-3 w-3" />
-                            <span>{item.userEmail}</span>
+                      <div className="flex items-center space-x-2 ml-4">
+                        <select
+                          value={item.status}
+                          onChange={(e) => handleStatusChange(item.id, e.target.value as any)}
+                          className="px-2 py-1 border rounded text-xs bg-background"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="reviewed">Reviewed</option>
+                          <option value="resolved">Resolved</option>
+                        </select>
+                        
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => toggleExpanded(item.id)}
+                          className="h-8 w-8"
+                        >
+                          {isExpanded ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                        </Button>
+                        
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteFeedback(item.id)}
+                          className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Expanded Section - Responses */}
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="border-t pt-3 space-y-3"
+                      >
+                        {/* Existing Responses */}
+                        {responses[item.id] && responses[item.id].length > 0 && (
+                          <div className="space-y-2">
+                            <h5 className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center space-x-2">
+                              <MessageCircle className="h-4 w-4 text-purple-600" />
+                              <span>Previous Responses ({responses[item.id].length})</span>
+                            </h5>
+                            {responses[item.id].map((response: any) => (
+                              <div
+                                key={response.id}
+                                className="bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800 rounded-lg p-3"
+                              >
+                                <div className="flex items-start justify-between mb-1">
+                                  <span className="text-xs font-medium text-purple-900 dark:text-purple-100">
+                                    {response.adminEmail}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Date(response.createdAt).toLocaleDateString()} at{' '}
+                                    {new Date(response.createdAt).toLocaleTimeString()}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-700 dark:text-gray-300">
+                                  {response.message}
+                                </p>
+                              </div>
+                            ))}
                           </div>
                         )}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2 ml-4">
-                      <select
-                        value={item.status}
-                        onChange={(e) => updateFeedback(item.id, { status: e.target.value as any })}
-                        className="px-2 py-1 border rounded text-xs bg-background"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="reviewed">Reviewed</option>
-                        <option value="resolved">Resolved</option>
-                      </select>
-                      
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteFeedback(item.id)}
-                        className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))
+
+                        {/* Add New Response */}
+                        {item.type === 'general' ? (
+                          /* Quick Thank You for General Feedback */
+                          <div className="space-y-2">
+                            <h5 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              Quick Actions
+                            </h5>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              This is general feedback/review. Send a quick thank you note.
+                            </p>
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => {
+                                  setResponseText({ 
+                                    ...responseText, 
+                                    [item.id]: "Thank you for your feedback! We appreciate you taking the time to share your thoughts with us. 😊" 
+                                  })
+                                  setTimeout(() => handleAddResponse(item.id), 100)
+                                }}
+                                disabled={isSubmittingResponse === item.id}
+                                size="sm"
+                                variant="outline"
+                              >
+                                {isSubmittingResponse === item.id ? (
+                                  <>
+                                    <div className="w-3 h-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin mr-2" />
+                                    Sending...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Send className="h-3 w-3 mr-2" />
+                                    Send Thank You
+                                  </>
+                                )}
+                              </Button>
+                              <Button
+                                onClick={() => handleStatusChange(item.id, 'reviewed')}
+                                size="sm"
+                                variant="ghost"
+                              >
+                                Mark as Reviewed
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          /* Full Response for Bug/Feature/Improvement */
+                          <div className="space-y-2">
+                            <h5 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              Respond to User
+                            </h5>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              {item.type === 'bug' && '🐛 Bug Report - Explain the fix or workaround'}
+                              {item.type === 'feature' && '💡 Feature Request - Share your thoughts or timeline'}
+                              {item.type === 'improvement' && '📈 Improvement - Discuss the enhancement'}
+                            </p>
+                            <Textarea
+                              placeholder={
+                                item.type === 'bug' 
+                                  ? "Thanks for reporting! We've identified the issue and..." 
+                                  : item.type === 'feature'
+                                  ? "Great suggestion! We're considering this for..."
+                                  : "Thanks for the improvement idea! We'll..."
+                              }
+                              value={responseText[item.id] || ''}
+                              onChange={(e) => setResponseText({ ...responseText, [item.id]: e.target.value })}
+                              rows={3}
+                              className="resize-none"
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => handleAddResponse(item.id)}
+                                disabled={!responseText[item.id]?.trim() || isSubmittingResponse === item.id}
+                                size="sm"
+                              >
+                                {isSubmittingResponse === item.id ? (
+                                  <>
+                                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                                    Sending...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Send className="h-3 w-3 mr-2" />
+                                    Send Response to User
+                                  </>
+                                )}
+                              </Button>
+                              {item.type === 'bug' && item.status !== 'resolved' && (
+                                <Button
+                                  onClick={() => handleStatusChange(item.id, 'resolved')}
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-green-300 text-green-700 hover:bg-green-50"
+                                >
+                                  <CheckCircle className="h-3 w-3 mr-2" />
+                                  Mark as Fixed
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </motion.div>
+                )
+              })
             )}
           </div>
         </CardContent>
